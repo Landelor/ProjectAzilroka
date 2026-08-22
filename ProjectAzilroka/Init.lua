@@ -455,7 +455,8 @@ do
 		for i = 2, 4 do
 			local str = _G['PAScanTooltipTextRight'..i]
 			local text = str and str:GetText()
-			if text then
+			-- Cooldown/recast tooltip text is a secret value while execution is tainted; string ops on it throw.
+			if text and not (issecretvalue and issecretvalue(text)) then
 				for _, matchtext in next, t do
 					if strmatch(text, matchtext) then return true end
 				end
