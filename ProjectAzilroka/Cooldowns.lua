@@ -260,6 +260,8 @@ end
 
 PA.RegisteredCooldowns = {}
 function PA:OnSetCooldown(start, duration, modRate)
+	if issecretvalue and (issecretvalue(start) or issecretvalue(duration)) then return end
+
 	if (not self.forceDisabled) and (start and duration) and (duration > MIN_DURATION) then
 		local timer = self.timer or PA:CreateCooldownTimer(self)
 		timer.start = start
