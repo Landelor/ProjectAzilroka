@@ -531,6 +531,11 @@ do
 			start, duration = chargeInfo.cooldownStartTime, (chargeInfo.cooldownDuration * (chargeInfo.maxCharges - chargeInfo.currentCharges))
 		end
 
+		-- Cooldown timing is a secret value while execution is tainted (e.g. in combat); arithmetic on it throws.
+		if issecretvalue and (issecretvalue(start) or issecretvalue(duration)) then
+			return 0, start, duration, chargeInfo
+		end
+
 		local currentDuration = max((start + duration - GetTime()), 0)
 		return currentDuration, start, duration, chargeInfo
 	end
