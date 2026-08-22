@@ -17,5 +17,4 @@
 	<Script file='Modules\SquareMinimapButtons.lua' />
 	<Script file='Modules\stAddonManager.lua' />
 	<Script file='Modules\TargetSounds.lua' />
-	<Script file='Modules\TorghastBuffs.lua' />
 </Ui>
