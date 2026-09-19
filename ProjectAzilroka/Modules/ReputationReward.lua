@@ -9,9 +9,46 @@ RR.Title, RR.Description, RR.Authors, RR.isEnabled = 'Reputation Rewards', ACL['
 local _G = _G
 local floor, pairs, ipairs, select, wipe, mod = floor, pairs, ipairs, select, wipe, mod
 
-local GetFactionInfo = C_Reputation.GetFactionInfo or GetFactionInfo
-local GetFactionInfoByID = C_Reputation.GetFactionInfoByID or GetFactionInfoByID
 local GetNumFactions = C_Reputation.GetNumFactions or GetNumFactions
+
+-- Retail replaced the GetFactionInfo / GetFactionInfoByID globals, which returned
+-- a positional tuple, with C_Reputation.GetFactionDataByIndex / GetFactionDataByID,
+-- which return a single FactionData table. There is no C_Reputation.GetFactionInfo,
+-- so the aliases this module used to build resolved to the removed globals and blew
+-- up on the first call. Wrap the legacy tuple into the modern table shape wherever
+-- the flavour still provides it, so every call site below can read fields by name.
+local function LegacyFactionData(name, description, reaction, currentReactionThreshold, nextReactionThreshold, currentStanding, atWarWith, canToggleAtWar, isHeader, isCollapsed, isHeaderWithRep, isWatched, isChild, factionID, hasBonusRepGain, canSetInactive)
+	if not name then return end
+
+	return {
+		name = name,
+		description = description,
+		reaction = reaction,
+		currentReactionThreshold = currentReactionThreshold,
+		nextReactionThreshold = nextReactionThreshold,
+		currentStanding = currentStanding,
+		atWarWith = atWarWith,
+		canToggleAtWar = canToggleAtWar,
+		isHeader = isHeader,
+		isCollapsed = isCollapsed,
+		isHeaderWithRep = isHeaderWithRep,
+		isWatched = isWatched,
+		isChild = isChild,
+		factionID = factionID,
+		hasBonusRepGain = hasBonusRepGain,
+		canSetInactive = canSetInactive,
+	}
+end
+
+local GetFactionDataByIndex = C_Reputation.GetFactionDataByIndex
+if not GetFactionDataByIndex and GetFactionInfo then
+	GetFactionDataByIndex = function(index) return LegacyFactionData(GetFactionInfo(index)) end
+end
+
+local GetFactionDataByID = C_Reputation.GetFactionDataByID
+if not GetFactionDataByID and GetFactionInfoByID then
+	GetFactionDataByID = function(factionID) return LegacyFactionData(GetFactionInfoByID(factionID)) end
+end
 local ExpandFactionHeader = ExpandFactionHeader
 local CollapseFactionHeader = CollapseFactionHeader
 
@@ -34,7 +71,8 @@ function RR:BuildFactionHeaders()
 	local i = 1
 
 	while i <= numFactions do
-		local _, _, _, _, _, _, _, _, isHeader, isCollapsed, _, _, _, factionID = GetFactionInfo(i)
+		local factionData = GetFactionDataByIndex(i)
+		local isHeader, isCollapsed, factionID = factionData and factionData.isHeader, factionData and factionData.isCollapsed, factionData and factionData.factionID
 
 		if isHeader and isCollapsed then
 			CollapsedHeaders[#CollapsedHeaders + 1] = i
@@ -75,15 +113,16 @@ function RR:GetBonusReputation(amtBase, factionID)
 	end
 
 	for i = 1, 40 do
-		local ID = select(11, UnitAura('player', i))
+		local auraData = PA:GetAuraData('player', i, 'HELPFUL')
+		local ID = auraData and auraData.spellId
 		if not ID then break end
 		if RR.AuraInfo[ID] and ((RR.AuraInfo[ID].faction == factionID) or (RR.AuraInfo[ID].faction == 0)) then
 			mult = mult + RR.AuraInfo[ID].bonus
 		end
 	end
 
-	local hasBonusRepGain = select(15, GetFactionInfoByID(factionID))
-	if hasBonusRepGain then
+	local factionData = GetFactionDataByID(factionID)
+	if factionData and factionData.hasBonusRepGain then
 		mult = mult * 2
 	end
 
@@ -125,7 +164,15 @@ function RR:Show()
 
 	for i = 1, numRepFactions do
 		local factionID, amtBase = GetQuestLogRewardFactionInfo(i)
-		local factionName, factionDescription, standingID, barMin, barMax, _, AtWar, ToggleAtWar, isHeader = GetFactionInfoByID(factionID)
+		local factionData = GetFactionDataByID(factionID)
+		local factionName = factionData and factionData.name
+		local factionDescription = factionData and factionData.description
+		local standingID = factionData and factionData.reaction
+		local barMin = factionData and factionData.currentReactionThreshold
+		local barMax = factionData and factionData.nextReactionThreshold
+		local AtWar = factionData and factionData.atWarWith
+		local ToggleAtWar = factionData and factionData.canToggleAtWar
+		local isHeader = factionData and factionData.isHeader
 
 		if factionName and (AtWar and ToggleAtWar or (not AtWar)) and (not (barMin == barMax)) then
 			amtBase = floor(amtBase / 100)
