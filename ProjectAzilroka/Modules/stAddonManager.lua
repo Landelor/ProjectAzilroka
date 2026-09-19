@@ -77,9 +77,9 @@ end
 function stAMCheckButtonMixin:OnClick()
 	if self.addonInfo.Name then
 		if PA:IsAddOnEnabled(self.addonInfo.Name, stAM.SelectedCharacter) then
-			DisableAddOn(self.addonInfo.Name, stAM.SelectedCharacter)
+			DisableAddOn(self.addonInfo.Name, PA:AddOnCharacter(stAM.SelectedCharacter))
 		else
-			EnableAddOn(self.addonInfo.Name, stAM.SelectedCharacter)
+			EnableAddOn(self.addonInfo.Name, PA:AddOnCharacter(stAM.SelectedCharacter))
 			if stAM.db.EnableRequiredAddons and self.addonInfo.Required then
 				for _, AddOn in next, self.addonInfo.Required do
 					EnableAddOn(AddOn)
@@ -414,11 +414,11 @@ end
 
 function stAM:LoadProfile(name)
 	if not IsShiftKeyDown() then
-		DisableAllAddOns(stAM.SelectedCharacter)
+		DisableAllAddOns(PA:AddOnCharacter(stAM.SelectedCharacter))
 	end
 
 	for _, AddOn in next, _G.stAddonManagerProfilesDB[name] do
-		EnableAddOn(AddOn, stAM.SelectedCharacter)
+		EnableAddOn(AddOn, PA:AddOnCharacter(stAM.SelectedCharacter))
 	end
 
 	stAM:UpdateAddonList()
@@ -449,12 +449,12 @@ function stAM:InitProfiles()
 	ProfileMenu.EnableAll.Text:SetText(ACL['Enable All'])
 	ProfileMenu.EnableAll:SetPoint('TOPLEFT', ProfileMenu, 'TOPLEFT', 10, -10)
 	ProfileMenu.EnableAll:SetPoint('TOPRIGHT', ProfileMenu, 'TOP', -3, -10)
-	ProfileMenu.EnableAll:SetScript('OnClick', function() EnableAllAddOns(stAM.SelectedCharacter) stAM:UpdateAddonList() end)
+	ProfileMenu.EnableAll:SetScript('OnClick', function() EnableAllAddOns(PA:AddOnCharacter(stAM.SelectedCharacter)) stAM:UpdateAddonList() end)
 
 	ProfileMenu.DisableAll.Text:SetText(ACL['Disable All'])
 	ProfileMenu.DisableAll:SetPoint('TOPRIGHT', ProfileMenu, 'TOPRIGHT', -10, -10)
 	ProfileMenu.DisableAll:SetPoint('TOPLEFT', ProfileMenu, 'TOP', 2, -10)
-	ProfileMenu.DisableAll:SetScript('OnClick', function() DisableAllAddOns(stAM.SelectedCharacter) stAM:UpdateAddonList() end)
+	ProfileMenu.DisableAll:SetScript('OnClick', function() DisableAllAddOns(PA:AddOnCharacter(stAM.SelectedCharacter)) stAM:UpdateAddonList() end)
 
 	ProfileMenu.NewButton.Text:SetText(ACL['New Profile'])
 	ProfileMenu.NewButton:SetPoint('TOPLEFT', ProfileMenu.EnableAll, 'BOTTOMLEFT', 0, -5)

@@ -79,20 +79,25 @@ PA.Multiple = 1
 PA.Solid = PA.Libs.LSM:Fetch('background', 'Solid')
 
 -- Project Data
-function PA:IsAddOnEnabled(addon, character)
-	if (type(character) == 'boolean' and character == true) then
-		character = nil
+
+-- stAddonManager's character menu stores its "All" entry as the boolean true,
+-- but the C_AddOns character argument only accepts a character name or nil and
+-- errors on a boolean. Normalise here so both the read and the write paths can
+-- hand a raw menu selection straight to the API.
+function PA:AddOnCharacter(character)
+	if character == true then
+		return nil
 	end
 
-	return GetAddOnEnableState(addon, character) == 2
+	return character
+end
+
+function PA:IsAddOnEnabled(addon, character)
+	return GetAddOnEnableState(addon, PA:AddOnCharacter(character)) == 2
 end
 
 function PA:IsAddOnPartiallyEnabled(addon, character)
-	if (type(character) == 'boolean' and character == true) then
-		character = nil
-	end
-
-	return GetAddOnEnableState(addon, character) == 1
+	return GetAddOnEnableState(addon, PA:AddOnCharacter(character)) == 1
 end
 
 PA.Title = GetAddOnMetadata('ProjectAzilroka', 'Title')
