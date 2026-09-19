@@ -1,4 +1,4 @@
-## Interface: 120100, 50504, 11509
+## Interface: 120100, 50504, 20506, 11509
 ## Title: |cFF16C3F2Project|r|cFFFFFFFFAzilroka|r
 ## Author: Azilroka, Nihilistzsche
 ## Version: 1.99.4

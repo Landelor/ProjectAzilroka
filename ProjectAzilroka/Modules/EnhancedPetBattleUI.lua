@@ -1,5 +1,5 @@
 local PA, ACL, ACH = unpack(_G.ProjectAzilroka)
-if PA.Classic then
+if not PA.MistsOrLater then
 	return
 end
 

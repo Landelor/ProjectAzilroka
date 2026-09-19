@@ -1,5 +1,5 @@
 local PA, ACL, ACH = unpack(_G.ProjectAzilroka)
-if PA.Classic then return end
+if not PA.MistsOrLater then return end
 
 local SRF = PA:NewModule('SunsongRanchFarmer', 'AceEvent-3.0')
 _G.SunsongRanchFarmer, PA.SunsongRanchFarmer = SRF, SRF

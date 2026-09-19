@@ -73,6 +73,13 @@ PA.Wrath = WOW_PROJECT_ID == WOW_PROJECT_WRATH_CLASSIC
 PA.Cata = WOW_PROJECT_ID == WOW_PROJECT_CATACLYSM_CLASSIC
 PA.Mists = WOW_PROJECT_ID == WOW_PROJECT_MISTS_CLASSIC
 
+-- PA.Classic is Classic Era alone. Gating a module on `if PA.Classic then return end`
+-- therefore only excludes Era, and lets the module run on TBC, Wrath and Cata too --
+-- which is wrong for anything introduced after those expansions. Pet battles and
+-- Sunsong Ranch both arrived in Mists (5.0), so they need this floor rather than a
+-- bare `not PA.Classic`.
+PA.MistsOrLater = PA.Retail or PA.Mists
+
 -- Pixel Perfect
 PA.ScreenWidth, PA.ScreenHeight = GetPhysicalScreenSize()
 PA.Multiple = 1
