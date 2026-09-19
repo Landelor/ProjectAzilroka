@@ -9,6 +9,35 @@ local next, tonumber, tostring, select, format, strmatch, tinsert, wipe = next, 
 
 local GetSpellCooldown = PA.GetSpellCooldown
 local GetSpellInfo = PA.GetSpellInfo
+
+-- PA.GetSpellInfo (Init.lua) returns a SpellInfo table, never the old positional
+-- tuple, so select(3, ...) on it silently yields nil rather than the icon. Note
+-- that the table's presence is not a validity test either: the non-retail
+-- fallback builds and returns a table even for an unknown spell, leaving every
+-- field nil. Test .name for that instead.
+local function GetSpellName(id)
+	local info = id and GetSpellInfo(id)
+	return info and info.name
+end
+
+local function GetSpellIcon(id)
+	local info = id and GetSpellInfo(id)
+	return info and info.iconID
+end
+
+-- Returns startTime, duration from PA.GetSpellCooldown's table, or nil when the
+-- values are secret. Cooldown timing is a secret value while execution is
+-- tainted, and comparing one throws, so callers must treat nil as "unknown"
+-- rather than "off cooldown". Mirrors the guard in PA:GetCooldownInfo.
+local function GetCooldownTiming(id)
+	local cooldownInfo = id and GetSpellCooldown(id)
+	if not cooldownInfo then return end
+
+	local start, duration = cooldownInfo.startTime, cooldownInfo.duration
+	if issecretvalue and (issecretvalue(start) or issecretvalue(duration)) then return end
+
+	return start, duration
+end
 local IsSpellKnownOrOverridesKnown = IsSpellKnownOrOverridesKnown
 local IsUsableSpell = C_Spell.IsSpellUsable
 local IsInInstance = IsInInstance
@@ -54,8 +83,10 @@ function AR:FindPlayerAura(db, checkPersonal, filter)
 end
 
 function AR:IsSpellOnCooldown(id)
-	local cooldownInfo = GetSpellCooldown(id)
-	if coolInfo.startTime > 0 and cooldownInfo.duration > 1.5 then
+	local start, duration = GetCooldownTiming(id)
+	if not start then return end
+
+	if start > 0 and duration > 1.5 then
 		return true
 	end
 end
@@ -147,14 +178,14 @@ function AR:Reminder_Update()
 					local filterCheck, reverseCheck = AR:FilterCheck(db), AR:FilterCheck(db, true)
 
 					if db.filterType == 'COOLDOWN' and db.cooldownSpellID and filterCheck then
-						local start, duration = GetSpellCooldown(db.cooldownSpellID)
+						local start, duration = GetCooldownTiming(db.cooldownSpellID)
 						if (duration and duration > 1.5) then
 							Button.cooldown:SetCooldown(start, duration)
 						end
 
-						Button.cooldown:SetShown((duration and duration > 0))
-						Button.icon:SetTexture(select(3, GetSpellInfo(db.cooldownSpellID)))
-						Button:SetShown((duration and duration == 0) or db.onCooldown)
+						Button.cooldown:SetShown((duration and duration > 0) or false)
+						Button.icon:SetTexture(GetSpellIcon(db.cooldownSpellID))
+						Button:SetShown((duration and duration == 0) or db.onCooldown or false)
 
 						AR:UpdateColors(Button, db.cooldownSpellID)
 
@@ -179,7 +210,7 @@ function AR:Reminder_Update()
 										end
 
 										if usable or not db.strictFilter then
-											Button.icon:SetTexture(select(3, GetSpellInfo(buff)))
+											Button.icon:SetTexture(GetSpellIcon(buff))
 											AR:UpdateColors(Button, buff)
 											break
 										end
@@ -266,7 +297,7 @@ function AR:UpdateFilterGroup(group)
 	if AR.db.Filters[selectedGroup][selectedFilter] and AR.db.Filters[selectedGroup][selectedFilter][group] then
 		local i = 1
 		for spell in next, AR.db.Filters[selectedGroup][selectedFilter][group] do
-			if spell and GetSpellInfo(spell) then
+			if spell and GetSpellName(spell) then
 				local name = format('AR%s', i + 2)
 				local optionName = PA.Options.args.AuraReminder.args.filterGroup.args[group].args[name]
 				if not optionName then
@@ -274,7 +305,7 @@ function AR:UpdateFilterGroup(group)
 					optionName = PA.Options.args.AuraReminder.args.filterGroup.args[group].args[name]
 				end
 
-				optionName.name = function() return format('%s (%s)', GetSpellInfo(spell), spell) end
+				optionName.name = function() return format('%s (%s)', GetSpellName(spell) or spell, spell) end
 				optionName.get = function() return spell and AR.db.Filters[selectedGroup][selectedFilter][group][spell] end
 				optionName.set = function(_, value) AR.db.Filters[selectedGroup][selectedFilter][group][spell] = value end
 				optionName.hidden = false
@@ -342,14 +373,14 @@ function AR:GetOptions()
 
 	AuraReminder.args.filterGroup.args.cooldownConditions = ACH:Group(ACL['Cooldown Conditions'], nil, 12, nil, nil, nil, nil, function() return AR.db.Filters[selectedGroup][selectedFilter].filterType ~= 'COOLDOWN' or selectedGroup == 'Global' end)
 	AuraReminder.args.filterGroup.args.cooldownConditions.inline = true
-	AuraReminder.args.filterGroup.args.cooldownConditions.args.description = ACH:Description(function() local spellID = AR.db.Filters[selectedGroup][selectedFilter].cooldownSpellID if not spellID or spellID == '' then return end return format('%s (%s)', GetSpellInfo(spellID), spellID) end, 0, 'medium', nil, nil, nil, nil, nil, function() return AR.db.Filters[selectedGroup][selectedFilter].cooldownSpellID == '' end)
+	AuraReminder.args.filterGroup.args.cooldownConditions.args.description = ACH:Description(function() local spellID = AR.db.Filters[selectedGroup][selectedFilter].cooldownSpellID if not spellID or spellID == '' then return end return format('%s (%s)', GetSpellName(spellID) or spellID, spellID) end, 0, 'medium', nil, nil, nil, nil, nil, function() return AR.db.Filters[selectedGroup][selectedFilter].cooldownSpellID == '' end)
 	AuraReminder.args.filterGroup.args.cooldownConditions.args.cooldownSpellID = ACH:Input(ACL['Spell ID'], nil, 1, nil, nil, function(info) return tostring(AR.db.Filters[selectedGroup][selectedFilter][info[#info]] or '') end, function(info, value) value = tonumber(value) if not value then return end AR.db.Filters[selectedGroup][selectedFilter][info[#info]] = value end)
 	AuraReminder.args.filterGroup.args.cooldownConditions.args.onCooldown = ACH:Toggle(ACL['Show On Cooldown'], nil, 2)
 	AuraReminder.args.filterGroup.args.cooldownConditions.args.cooldownAlpha = ACH:Range(ACL['Cooldown Alpha'], nil, 3, { min = 0, max = 1, step = .1 }, nil, nil, nil, nil, function() return not AR.db.Filters[selectedGroup][selectedFilter].onCooldown end)
 
 	local function AddSpellSet(info, value) value = tonumber(value) if not value then return end AR.db.Filters[selectedGroup][selectedFilter][info[#info-1]] = AR.db.Filters[selectedGroup][selectedFilter][info[#info-1]] or {} AR.db.Filters[selectedGroup][selectedFilter][info[#info-1]][value] = true AR:UpdateFilterGroup(info[#info-1]) end
 	local function RemoveFilterSet(info, value) AR.db.Filters[selectedGroup][selectedFilter][info[#info-1]][value] = nil AR:UpdateFilterGroup(info[#info-1]) end
-	local function RemoveFilterValues(info) wipe(spellList) if AR.db.Filters[selectedGroup][selectedFilter][info[#info-1]] then for spellID in next, AR.db.Filters[selectedGroup][selectedFilter][info[#info-1]] do local name = GetSpellInfo(spellID) spellList[spellID] = name and format('%s (%s)', name, spellID) or spellID end end return spellList end
+	local function RemoveFilterValues(info) wipe(spellList) if AR.db.Filters[selectedGroup][selectedFilter][info[#info-1]] then for spellID in next, AR.db.Filters[selectedGroup][selectedFilter][info[#info-1]] do local name = GetSpellName(spellID) spellList[spellID] = name and format('%s (%s)', name, spellID) or spellID end end return spellList end
 
 	AuraReminder.args.filterGroup.args.spellGroup = ACH:Group(ACL['Spells'], nil, 13, nil, function() AR:UpdateFilterGroup('spellGroup') return '' end, nil, nil, function() return AR.db.Filters[selectedGroup][selectedFilter].filterType ~= 'SPELL' end)
 	AuraReminder.args.filterGroup.args.spellGroup.inline = true
