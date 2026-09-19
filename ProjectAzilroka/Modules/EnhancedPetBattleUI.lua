@@ -428,17 +428,21 @@ function EPB:InitPetFrameAPI()
 						)
 					elseif colors.classbackdrop then
 						local _, Class = UnitClass("player")
-						color = parent.colors.class[Class]
-						if color and self.invertClassColor then
-							for i = 1, 3 do
-								color[i] = math.max(1 - color[i], 0.15)
+						local classColor = parent.colors.class[Class]
+						if classColor then
+							-- Read the components out before inverting. parent.colors.class
+							-- is oUF's shared table, so inverting it in place recoloured
+							-- every other consumer of that class colour, and did so again
+							-- on each call until the colour collapsed to the 0.15 floor.
+							local cr, cg, cb = classColor[1], classColor[2], classColor[3]
+							if self.invertClassColor then
+								cr, cg, cb = math.max(1 - cr, 0.15), math.max(1 - cg, 0.15), math.max(1 - cb, 0.15)
 							end
-						end
-						if color then
+
 							self.bg:SetVertexColor(
-								color[1] * self.bg.multiplier,
-								color[2] * self.bg.multiplier,
-								color[3] * self.bg.multiplier
+								cr * self.bg.multiplier,
+								cg * self.bg.multiplier,
+								cb * self.bg.multiplier
 							)
 						end
 					elseif newb then

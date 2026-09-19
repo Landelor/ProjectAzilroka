@@ -132,7 +132,7 @@ function IF:UpdateActiveCooldowns()
 						button.StatusBar:SetStatusBarColor(color.r, color.g, color.b)
 					end
 
-					button.StatusBar.Name:SetText(Name)
+					button.StatusBar.Name:SetText(spellData.name)
 				else
 					button.Cooldown:SetCooldown(Start, Duration)
 				end
@@ -169,7 +169,7 @@ function IF:UpdateItemCooldowns()
 
 			button.duration = Duration
 			button.itemID = itemID
-			button.itemName = Name
+			button.itemName = itemName
 			button.expiration = Start + Duration
 
 			button.Icon:SetTexture(itemTexture)
@@ -188,7 +188,7 @@ function IF:UpdateItemCooldowns()
 						button.StatusBar:SetStatusBarColor(color.r, color.g, color.b)
 					end
 
-					button.StatusBar.Name:SetText(Name)
+					button.StatusBar.Name:SetText(itemName)
 				else
 					button.Cooldown:SetCooldown(Start, Duration)
 				end
@@ -256,6 +256,10 @@ end
 
 function IF:CustomFilter(element, unit, button, auraData)
 	local spellID, duration = auraData.spellId, auraData.duration
+	-- Both of these were locals unpacked from the old UnitAura tuple. The move to
+	-- the AuraData table dropped them, leaving two undefined globals, so caster was
+	-- always nil and the 'None' filter below rejected every aura.
+	local caster, casterIsPlayer = auraData.sourceUnit, auraData.isFromPlayerOrPlayerPet
 	if duration == 0 then
 		return false
 	end
