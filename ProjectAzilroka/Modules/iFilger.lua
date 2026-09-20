@@ -106,7 +106,13 @@ function IF:UpdateActiveCooldowns()
 				end
 			end
 
-			CurrentDuration = (Start + Duration - GetTime())
+			-- Cooldown timing is a secret value while execution is tainted (e.g. in combat); arithmetic on it throws.
+			if issecretvalue and (issecretvalue(Start) or issecretvalue(Duration)) then
+				IF.ActiveCooldowns[SpellID] = nil
+				button.CurrentDuration = 0
+			else
+				CurrentDuration = (Start + Duration - GetTime())
+			end
 
 			-- if Charges and Start == (((2^32)/1000) - Duration) then
 			-- 	CurrentDuration = 0
@@ -132,7 +138,7 @@ function IF:UpdateActiveCooldowns()
 						button.StatusBar:SetStatusBarColor(color.r, color.g, color.b)
 					end
 
-					button.StatusBar.Name:SetText(Name)
+					button.StatusBar.Name:SetText(spellData.name)
 				else
 					button.Cooldown:SetCooldown(Start, Duration)
 				end
@@ -165,11 +171,18 @@ function IF:UpdateItemCooldowns()
 			Position = Position + 1
 
 			local Start, Duration, CurrentDuration = GetItemCooldown(itemID)
-			CurrentDuration = (Start + Duration - GetTime())
+
+			-- Cooldown timing is a secret value while execution is tainted (e.g. in combat); arithmetic on it throws.
+			if issecretvalue and (issecretvalue(Start) or issecretvalue(Duration)) then
+				IF.ItemCooldowns[itemID] = nil
+				button.CurrentDuration = 0
+			else
+				CurrentDuration = (Start + Duration - GetTime())
+			end
 
 			button.duration = Duration
 			button.itemID = itemID
-			button.itemName = Name
+			button.itemName = itemName
 			button.expiration = Start + Duration
 
 			button.Icon:SetTexture(itemTexture)
@@ -188,7 +201,7 @@ function IF:UpdateItemCooldowns()
 						button.StatusBar:SetStatusBarColor(color.r, color.g, color.b)
 					end
 
-					button.StatusBar.Name:SetText(Name)
+					button.StatusBar.Name:SetText(itemName)
 				else
 					button.Cooldown:SetCooldown(Start, Duration)
 				end
@@ -223,7 +236,14 @@ function IF:UpdateDelayedCooldowns()
 			end
 		end
 
-		local CurrentDuration = (Start + Duration - GetTime())
+		local CurrentDuration
+
+		-- Cooldown timing is a secret value while execution is tainted (e.g. in combat); arithmetic on it throws.
+		if issecretvalue and (issecretvalue(Start) or issecretvalue(Duration)) then
+			IF.DelayCooldowns[SpellID] = nil
+		else
+			CurrentDuration = (Start + Duration - GetTime())
+		end
 
 		if CurrentDuration then
 			if (CurrentDuration < IF.db.SuppressDuration) and (CurrentDuration > GLOBAL_COOLDOWN_TIME) then
@@ -365,13 +385,18 @@ end
 function IF:PLAYER_ENTERING_WORLD()
 	for SpellID in next, IF.db.Cooldowns.SpellCDs do
 		local cooldownInfo = GetSpellCooldown(SpellID)
-		local currentDuration = (cooldownInfo.startTime + cooldownInfo.duration - GetTime()) or 0
+		local startTime, duration = cooldownInfo.startTime, cooldownInfo.duration
 
-		if currentDuration > .1 and (currentDuration < IF.db.Cooldowns.IgnoreDuration) then
-			if (currentDuration >= IF.db.Cooldowns.SuppressDuration) then
-				IF.DelayCooldowns[SpellID] = true
-			elseif (currentDuration > GLOBAL_COOLDOWN_TIME) then
-				IF.ActiveCooldowns[SpellID] = true
+		-- Cooldown timing is a secret value while execution is tainted (e.g. in combat); arithmetic on it throws.
+		if not (issecretvalue and (issecretvalue(startTime) or issecretvalue(duration))) then
+			local currentDuration = (startTime + duration - GetTime()) or 0
+
+			if currentDuration > .1 and (currentDuration < IF.db.Cooldowns.IgnoreDuration) then
+				if (currentDuration >= IF.db.Cooldowns.SuppressDuration) then
+					IF.DelayCooldowns[SpellID] = true
+				elseif (currentDuration > GLOBAL_COOLDOWN_TIME) then
+					IF.ActiveCooldowns[SpellID] = true
+				end
 			end
 		end
 	end
@@ -411,13 +436,16 @@ function IF:SPELL_UPDATE_COOLDOWN()
 		end
 
 		if Start and Duration then
-			CurrentDuration = (Start + Duration - GetTime())
+			-- Cooldown timing is a secret value while execution is tainted (e.g. in combat); arithmetic on it throws.
+			if not (issecretvalue and (issecretvalue(Start) or issecretvalue(Duration))) then
+				CurrentDuration = (Start + Duration - GetTime())
 
-			if Enable == 1 and CurrentDuration and (CurrentDuration < IF.db.Cooldowns.IgnoreDuration) then
-				if (CurrentDuration >= IF.db.Cooldowns.SuppressDuration) or IF.HasCDDelay[SpellID] then
-					IF.DelayCooldowns[SpellID] = true
-				elseif (CurrentDuration > GLOBAL_COOLDOWN_TIME) then
-					IF.ActiveCooldowns[SpellID] = true
+				if Enable == 1 and CurrentDuration and (CurrentDuration < IF.db.Cooldowns.IgnoreDuration) then
+					if (CurrentDuration >= IF.db.Cooldowns.SuppressDuration) or IF.HasCDDelay[SpellID] then
+						IF.DelayCooldowns[SpellID] = true
+					elseif (CurrentDuration > GLOBAL_COOLDOWN_TIME) then
+						IF.ActiveCooldowns[SpellID] = true
+					end
 				end
 			end
 		end
