@@ -99,7 +99,13 @@ function IF:UpdateActiveCooldowns()
 			do
 				local cooldownInfo, chargeInfo = GetSpellCooldown(SpellID), GetSpellCharges(SpellID)
 
-				if chargeInfo and (chargeInfo.currentCharges and chargeInfo.maxCharges > 1 and chargeInfo.currentCharges < chargeInfo.maxCharges) then
+				-- currentCharges/maxCharges can be secret values while tainted; comparing them throws.
+				local isChargeCooldown = false
+				if chargeInfo and chargeInfo.currentCharges and chargeInfo.maxCharges and not (issecretvalue and (issecretvalue(chargeInfo.currentCharges) or issecretvalue(chargeInfo.maxCharges))) then
+					isChargeCooldown = chargeInfo.maxCharges > 1 and chargeInfo.currentCharges < chargeInfo.maxCharges
+				end
+
+				if isChargeCooldown then
 					Start, Duration = chargeInfo.cooldownStartTime, chargeInfo.cooldownDuration
 				else
 					Start, Duration = cooldownInfo.startTime, cooldownInfo.duration
@@ -229,7 +235,13 @@ function IF:UpdateDelayedCooldowns()
 		do
 			local cooldownInfo, chargeInfo = GetSpellCooldown(SpellID), GetSpellCharges(SpellID)
 
-			if chargeInfo and (chargeInfo.currentCharges and chargeInfo.maxCharges > 1 and chargeInfo.currentCharges < chargeInfo.maxCharges) then
+			-- currentCharges/maxCharges can be secret values while tainted; comparing them throws.
+			local isChargeCooldown = false
+			if chargeInfo and chargeInfo.currentCharges and chargeInfo.maxCharges and not (issecretvalue and (issecretvalue(chargeInfo.currentCharges) or issecretvalue(chargeInfo.maxCharges))) then
+				isChargeCooldown = chargeInfo.maxCharges > 1 and chargeInfo.currentCharges < chargeInfo.maxCharges
+			end
+
+			if isChargeCooldown then
 				Start, Duration = chargeInfo.cooldownStartTime, chargeInfo.cooldownDuration
 			else
 				Start, Duration = cooldownInfo.startTime, cooldownInfo.duration

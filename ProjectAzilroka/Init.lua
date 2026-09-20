@@ -528,8 +528,15 @@ do
 		local cooldownInfo, chargeInfo = GetSpellCooldown(spellID), GetSpellCharges(spellID)
 		local start, duration = cooldownInfo.startTime, cooldownInfo.duration
 
-		if chargeInfo and (chargeInfo.currentCharges and chargeInfo.maxCharges > 1 and chargeInfo.currentCharges < chargeInfo.maxCharges) then
-			start, duration = chargeInfo.cooldownStartTime, (chargeInfo.cooldownDuration * (chargeInfo.maxCharges - chargeInfo.currentCharges))
+		if chargeInfo and chargeInfo.currentCharges and chargeInfo.maxCharges then
+			-- currentCharges/maxCharges can be secret values while tainted; comparing them throws.
+			if issecretvalue and (issecretvalue(chargeInfo.currentCharges) or issecretvalue(chargeInfo.maxCharges)) then
+				return 0, chargeInfo.cooldownStartTime or start, chargeInfo.cooldownDuration or duration, chargeInfo
+			end
+
+			if chargeInfo.maxCharges > 1 and chargeInfo.currentCharges < chargeInfo.maxCharges then
+				start, duration = chargeInfo.cooldownStartTime, (chargeInfo.cooldownDuration * (chargeInfo.maxCharges - chargeInfo.currentCharges))
+			end
 		end
 
 		-- Cooldown timing is a secret value while execution is tainted (e.g. in combat); arithmetic on it throws.
